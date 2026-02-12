@@ -35,6 +35,7 @@ export interface OAuthStartResponse {
     auth_url: string;
     session_id: string;
     provider: OAuthProvider;
+    code_verifier?: string; // Only for Codex, needed for manual callback submission
 }
 
 /**
@@ -71,6 +72,7 @@ export interface CreateOAuthTokenRequest {
 export interface SubmitOAuthCallbackRequest {
     provider: OAuthProvider;
     callback_url: string;
+    code_verifier?: string; // Required for Codex
 }
 
 /**

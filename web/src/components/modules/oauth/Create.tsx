@@ -54,6 +54,7 @@ export function CreateDialogContent() {
     const [callbackUrl, setCallbackUrl] = useState('');
     const [authStarted, setAuthStarted] = useState(false);
     const [authUrl, setAuthUrl] = useState('');
+    const [codeVerifier, setCodeVerifier] = useState('');
 
     // Manual form state
     const [manualProvider, setManualProvider] = useState<OAuthProvider>('codex');
@@ -69,6 +70,10 @@ export function CreateDialogContent() {
             onSuccess: (data) => {
                 setAuthUrl(data.auth_url);
                 setAuthStarted(true);
+                // Save code_verifier for Codex (needed for callback submission)
+                if (data.code_verifier) {
+                    setCodeVerifier(data.code_verifier);
+                }
                 // Open auth window
                 window.open(data.auth_url, '_blank', 'width=600,height=800');
             },
@@ -95,6 +100,7 @@ export function CreateDialogContent() {
             submitCallback.mutate({
                 provider: oauthProvider,
                 callback_url: callbackUrl.trim(),
+                code_verifier: codeVerifier || undefined,
             }, {
                 onSuccess: () => {
                     toast.success('OAuth Token created successfully');
@@ -146,6 +152,7 @@ export function CreateDialogContent() {
         setView('menu');
         setAuthStarted(false);
         setCallbackUrl('');
+        setCodeVerifier('');
     };
 
     const isValidManual = accessToken.trim() !== '';

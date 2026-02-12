@@ -76,9 +76,10 @@ type OAuthStartRequest struct {
 
 // OAuthStartResponse represents the response for starting OAuth
 type OAuthStartResponse struct {
-	AuthURL   string `json:"auth_url"`
-	SessionID string `json:"session_id"`
-	Provider  string `json:"provider"`
+	AuthURL      string `json:"auth_url"`
+	SessionID    string `json:"session_id"`
+	Provider     string `json:"provider"`
+	CodeVerifier string `json:"code_verifier,omitempty"` // Only for Codex, for manual callback submission
 }
 
 // oauthStart initiates the OAuth flow
@@ -116,9 +117,10 @@ func oauthStart(c *gin.Context) {
 		session := sessionManager.Create(provider, state, codeVerifier, redirectURI)
 
 		resp.Success(c, OAuthStartResponse{
-			AuthURL:   authURL,
-			SessionID: session.ID,
-			Provider:  provider,
+			AuthURL:      authURL,
+			SessionID:    session.ID,
+			Provider:     provider,
+			CodeVerifier: codeVerifier,
 		})
 
 	case "antigravity":
@@ -271,8 +273,9 @@ func oauthTokenCreate(c *gin.Context) {
 
 // OAuthCallbackSubmitRequest represents a callback URL submission
 type OAuthCallbackSubmitRequest struct {
-	Provider    string `json:"provider" binding:"required"`
-	CallbackURL string `json:"callback_url" binding:"required"`
+	Provider     string `json:"provider" binding:"required"`
+	CallbackURL  string `json:"callback_url" binding:"required"`
+	CodeVerifier string `json:"code_verifier,omitempty"` // Required for Codex
 }
 
 // oauthCallbackSubmit handles OAuth callback URL submission from user
@@ -302,11 +305,12 @@ func oauthCallbackSubmit(c *gin.Context) {
 
 	switch req.Provider {
 	case "codex":
-		// For codex, we need the code verifier from session
-		// Since the user is submitting the callback URL manually,
-		// we'll need to create a new session or ask for code verifier
-		// For now, let's try to exchange with empty code verifier (may fail)
-		pkceCodes := &codex.PKCECodes{CodeVerifier: ""}
+		// For codex, we need the code verifier from the request
+		if req.CodeVerifier == "" {
+			resp.Error(c, http.StatusBadRequest, "Missing code_verifier parameter for Codex OAuth")
+			return
+		}
+		pkceCodes := &codex.PKCECodes{CodeVerifier: req.CodeVerifier}
 		tokenResp, claims, err := codexAuth.ExchangeCodeForTokens(ctx, code, pkceCodes)
 		if err != nil {
 			resp.Error(c, http.StatusBadRequest, fmt.Sprintf("Failed to exchange code for token: %v", err))
