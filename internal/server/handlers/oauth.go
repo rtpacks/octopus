@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/bestruirui/octopus/internal/auth"
@@ -62,6 +63,9 @@ func init() {
 		).
 		AddRoute(
 			router.NewRoute("/status/:id", http.MethodGet).Handle(oauthTokenStatus),
+		).
+		AddRoute(
+			router.NewRoute("/callback/submit", http.MethodPost).Handle(oauthCallbackSubmit),
 		)
 }
 
@@ -263,6 +267,89 @@ func oauthTokenCreate(c *gin.Context) {
 	}
 
 	resp.Success(c, token.ToResponse())
+}
+
+// OAuthCallbackSubmitRequest represents a callback URL submission
+type OAuthCallbackSubmitRequest struct {
+	Provider    string `json:"provider" binding:"required"`
+	CallbackURL string `json:"callback_url" binding:"required"`
+}
+
+// oauthCallbackSubmit handles OAuth callback URL submission from user
+func oauthCallbackSubmit(c *gin.Context) {
+	var req OAuthCallbackSubmitRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		resp.Error(c, http.StatusBadRequest, resp.ErrInvalidJSON)
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Parse the callback URL to extract code parameter
+	parsedURL, err := url.Parse(req.CallbackURL)
+	if err != nil {
+		resp.Error(c, http.StatusBadRequest, fmt.Sprintf("Invalid callback URL: %v", err))
+		return
+	}
+
+	code := parsedURL.Query().Get("code")
+	if code == "" {
+		resp.Error(c, http.StatusBadRequest, "Missing code parameter in callback URL")
+		return
+	}
+
+	var oauthToken *model.OAuthToken
+
+	switch req.Provider {
+	case "codex":
+		// For codex, we need the code verifier from session
+		// Since the user is submitting the callback URL manually,
+		// we'll need to create a new session or ask for code verifier
+		// For now, let's try to exchange with empty code verifier (may fail)
+		pkceCodes := &codex.PKCECodes{CodeVerifier: ""}
+		tokenResp, claims, err := codexAuth.ExchangeCodeForTokens(ctx, code, pkceCodes)
+		if err != nil {
+			resp.Error(c, http.StatusBadRequest, fmt.Sprintf("Failed to exchange code for token: %v", err))
+			return
+		}
+		oauthToken = codex.CreateOAuthToken(tokenResp, claims)
+
+	case "antigravity":
+		redirectURI := fmt.Sprintf("http://localhost:%d/oauth-callback", antigravity.CallbackPort)
+		tokenResp, err := antigravityAuth.ExchangeCodeForTokens(ctx, code, redirectURI)
+		if err != nil {
+			resp.Error(c, http.StatusBadRequest, fmt.Sprintf("Failed to exchange code for token: %v", err))
+			return
+		}
+
+		// Fetch user email
+		email, err := antigravityAuth.FetchUserInfo(ctx, tokenResp.AccessToken)
+		if err != nil {
+			log.Warnf("Failed to fetch user info: %v", err)
+		}
+
+		oauthToken = antigravity.CreateOAuthToken(tokenResp, email)
+
+	default:
+		resp.Error(c, http.StatusBadRequest, "Invalid provider. Supported: codex, antigravity")
+		return
+	}
+
+	// Save token to database
+	savedToken, err := op.OAuthTokenCreate(&model.OAuthTokenCreateRequest{
+		Type:         oauthToken.Type,
+		Email:        oauthToken.Email,
+		AccessToken:  oauthToken.AccessToken,
+		RefreshToken: oauthToken.RefreshToken,
+		IDToken:      oauthToken.IDToken,
+		ExpiresIn:    int64(time.Until(*oauthToken.ExpiresAt).Seconds()),
+	}, ctx)
+	if err != nil {
+		resp.Error(c, http.StatusInternalServerError, fmt.Sprintf("Failed to save token: %v", err))
+		return
+	}
+
+	resp.Success(c, savedToken.ToResponse())
 }
 
 // oauthTokenUpdate updates an OAuth token

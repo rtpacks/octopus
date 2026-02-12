@@ -66,6 +66,14 @@ export interface CreateOAuthTokenRequest {
 }
 
 /**
+ * 提交 OAuth 回调 URL 请求
+ */
+export interface SubmitOAuthCallbackRequest {
+    provider: OAuthProvider;
+    callback_url: string;
+}
+
+/**
  * 更新 OAuth Token 请求
  */
 export interface UpdateOAuthTokenRequest {
@@ -247,5 +255,33 @@ export function useOAuthTokenStatus(id: number | null) {
         },
         enabled: id !== null,
         refetchInterval: 30000,
+    });
+}
+
+/**
+ * 提交 OAuth 回调 URL Hook
+ *
+ * @example
+ * const submitCallback = useSubmitOAuthCallback();
+ *
+ * submitCallback.mutate({
+ *   provider: 'codex',
+ *   callback_url: 'http://localhost:1455/auth/callback?code=xxx'
+ * });
+ */
+export function useSubmitOAuthCallback() {
+    const queryClient = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (data: SubmitOAuthCallbackRequest) => {
+            return apiClient.post<OAuthTokenResponse>('/api/v1/oauth/callback/submit', data);
+        },
+        onSuccess: (data) => {
+            logger.log('OAuth 回调提交成功, Token 已创建:', data);
+            queryClient.invalidateQueries({ queryKey: ['oauth', 'tokens'] });
+        },
+        onError: (error) => {
+            logger.error('OAuth 回调提交失败:', error);
+        },
     });
 }
