@@ -108,8 +108,9 @@ export function CreateDialogContent() {
                     setView('menu');
                     setCallbackUrl('');
                     setAuthStarted(false);
+                    setCodeVerifier('');
                 },
-                onError: (error: any) {
+                onError: (error: any) => {
                     const errorMsg = error?.response?.data?.error || error?.message || 'Failed to submit callback URL';
                     toast.error('Failed to create token: ' + errorMsg);
                 },
