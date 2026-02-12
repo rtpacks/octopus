@@ -15,6 +15,8 @@ export function CreateDialogContent() {
     const [formData, setFormData] = useState<ChannelFormData>({
         name: '',
         type: ChannelType.OpenAIChat,
+        auth_type: 'api_key',
+        oauth_token_id: null,
         base_urls: [{ url: '', delay: 0 }],
         custom_header: [],
         channel_proxy: '',
@@ -45,13 +47,19 @@ export function CreateDialogContent() {
 
         const channelProxy = formData.channel_proxy.trim();
         const paramOverride = formData.param_override.trim();
+
+        // Check if using OAuth
+        const isOAuth = formData.auth_type === 'oauth_codex' || formData.auth_type === 'oauth_antigravity';
+
         createChannel.mutate(
             {
                 name: formData.name,
                 type: formData.type,
+                auth_type: formData.auth_type,
+                oauth_token_id: isOAuth ? formData.oauth_token_id : null,
                 enabled: formData.enabled,
                 base_urls: normalizedBaseUrls,
-                keys: normalizedKeys,
+                keys: isOAuth ? [] : normalizedKeys,
                 model: formData.model,
                 custom_model: formData.custom_model,
                 proxy: formData.proxy,
@@ -67,6 +75,8 @@ export function CreateDialogContent() {
                     setFormData({
                         name: '',
                         type: ChannelType.OpenAIChat,
+                        auth_type: 'api_key',
+                        oauth_token_id: null,
                         base_urls: [{ url: '', delay: 0 }],
                         custom_header: [],
                         channel_proxy: '',

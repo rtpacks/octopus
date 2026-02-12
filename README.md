@@ -15,6 +15,7 @@
 
 - 🔀 **Multi-Channel Aggregation** - Connect multiple LLM provider channels with unified management
 - 🔑 **Multi-Key Support** - Support multiple API keys for a single channel
+- 🔐 **OAuth Authentication** - Support OAuth login for ChatGPT (Codex) and Google (Antigravity/Gemini) subscriptions
 - ⚡ **Smart Selection** - Multiple endpoints per channel, smart selection of the endpoint with the shortest delay
 - ⚖️ **Load Balancing** - Automatic request distribution for stable and efficient service
 - 🔄 **Protocol Conversion** - Seamless conversion between OpenAI Chat / OpenAI Responses / Anthropic API formats
@@ -285,6 +286,39 @@ Manage model pricing information in the system.
 | 🥈 Low | models.dev | Auto-synced default prices |
 
 > 💡 **Tip**: To override a model's default price, simply set a custom price for it in the price management page.
+
+---
+
+### 🔐 OAuth Authentication
+
+Octopus supports dual authentication modes that can coexist:
+
+| Mode | Description | Use Case |
+|------|-------------|----------|
+| **API Key** | Traditional API key authentication | Enterprise API keys |
+| **OAuth** | OAuth login with automatic token refresh | Personal subscriptions (ChatGPT, Gemini) |
+
+**Supported OAuth Providers:**
+
+| Provider | Auth Type | Description |
+|----------|-----------|-------------|
+| Codex / ChatGPT | `oauth_codex` | Login with ChatGPT account |
+| Antigravity / Gemini | `oauth_antigravity` | Login with Google account |
+
+**Key Features:**
+- 🔄 Automatic token refresh before expiration
+- 🔒 Secure token storage with hidden credentials
+- 📊 Token status monitoring (Active / Expired / Disabled)
+- 🔀 Seamless integration with existing API Key channels
+
+**Usage:**
+1. Navigate to **OAuth** page
+2. Click **+** to add a new token
+3. Select OAuth login or manually add token
+4. Create a Channel with OAuth authentication type
+5. Select the OAuth token for the channel
+
+> 📖 **Detailed Guide**: See [OAuth Integration Guide](docs/oauth.md) for complete documentation.
 
 ---
 

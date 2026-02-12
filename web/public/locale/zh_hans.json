@@ -46,6 +46,7 @@
     "navbar": {
         "home": "主页",
         "channel": "渠道",
+        "oauth": "OAuth",
         "group": "分组",
         "key": "密钥",
         "model": "价格",
@@ -500,7 +501,53 @@
             "autoGroupRegex": "正则匹配",
             "matchRegex": "匹配正则",
             "matchRegexPlaceholder": "可选：用于匹配请求模型名称的正则表达式",
-            "remark": "备注"
+            "remark": "备注",
+            "authType": "认证类型",
+            "authTypeApiKey": "API Key",
+            "authTypeOAuthCodex": "OAuth (Codex/ChatGPT)",
+            "authTypeOAuthAntigravity": "OAuth (Antigravity/Gemini)",
+            "oauthToken": "OAuth 令牌",
+            "oauthTokenPlaceholder": "选择一个 OAuth 令牌"
+        }
+    },
+    "oauth": {
+        "create": {
+            "title": "添加 OAuth 令牌",
+            "oauthLogin": "OAuth 登录",
+            "manualAdd": "手动添加令牌",
+            "codex": "使用 ChatGPT 登录 (Codex)",
+            "antigravity": "使用 Google 登录 (Antigravity)"
+        },
+        "card": {
+            "enabled": "已启用",
+            "disabled": "已禁用",
+            "expired": "已过期",
+            "active": "有效",
+            "expiresIn": "过期时间",
+            "lastRefresh": "上次刷新",
+            "refresh": "刷新",
+            "delete": "删除"
+        },
+        "manual": {
+            "title": "手动添加令牌",
+            "description": "手动输入 OAuth 令牌详情。您可以在 OAuth 登录期间从浏览器的开发者工具中获取这些值。",
+            "provider": "提供商",
+            "email": "邮箱（可选）",
+            "accessToken": "访问令牌",
+            "refreshToken": "刷新令牌（可选）",
+            "expiresIn": "过期时间（秒，可选）",
+            "remark": "备注（可选）",
+            "add": "添加令牌"
+        },
+        "login": {
+            "title": "OAuth 登录",
+            "start": "开始登录",
+            "started": "认证窗口已打开",
+            "startedDescription": "在打开的窗口中完成登录。认证成功后，令牌将出现在列表中。"
+        },
+        "delete": {
+            "title": "删除 OAuth 令牌",
+            "description": "确定要删除此 OAuth 令牌吗？此操作无法撤销。"
         }
     }
 }

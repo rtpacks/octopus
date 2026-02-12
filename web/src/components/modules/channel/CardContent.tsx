@@ -36,6 +36,8 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
     const [formData, setFormData] = useState<ChannelFormData>({
         name: channel.name,
         type: channel.type,
+        auth_type: channel.auth_type ?? 'api_key',
+        oauth_token_id: channel.oauth_token_id ?? null,
         enabled: channel.enabled,
         base_urls: channel.base_urls?.length ? channel.base_urls : [{ url: '', delay: 0 }],
         custom_header: channel.custom_header ?? [],
@@ -75,6 +77,8 @@ export function CardContent({ channel, stats }: { channel: Channel; stats: Stats
         // only send changed fields to avoid accidental clears
         if (formData.name !== channel.name) req.name = formData.name;
         if (formData.type !== channel.type) req.type = formData.type;
+        if (formData.auth_type !== channel.auth_type) req.auth_type = formData.auth_type;
+        if (formData.oauth_token_id !== channel.oauth_token_id) req.oauth_token_id = formData.oauth_token_id;
         if (formData.enabled !== channel.enabled) req.enabled = formData.enabled;
         if (!baseUrlsEqual(formData.base_urls, channel.base_urls)) {
             req.base_urls = (formData.base_urls ?? []).filter((u) => u.url.trim()).map((u) => ({

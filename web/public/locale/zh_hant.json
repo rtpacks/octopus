@@ -46,6 +46,7 @@
     "navbar": {
         "home": "主頁",
         "channel": "供應源",
+        "oauth": "OAuth",
         "group": "分組",
         "key": "金鑰",
         "model": "價格",
@@ -500,7 +501,53 @@
             "autoGroupRegex": "正規比對",
             "matchRegex": "匹配正規",
             "matchRegexPlaceholder": "可選：用於匹配請求模型名稱的正規表示式",
-            "remark": "備註"
+            "remark": "備註",
+            "authType": "認證類型",
+            "authTypeApiKey": "API Key",
+            "authTypeOAuthCodex": "OAuth (Codex/ChatGPT)",
+            "authTypeOAuthAntigravity": "OAuth (Antigravity/Gemini)",
+            "oauthToken": "OAuth Token",
+            "oauthTokenPlaceholder": "選擇一個 OAuth Token"
+        }
+    },
+    "oauth": {
+        "create": {
+            "title": "新增 OAuth Token",
+            "oauthLogin": "OAuth 登入",
+            "manualAdd": "手動新增 Token",
+            "codex": "使用 ChatGPT 登入 (Codex)",
+            "antigravity": "使用 Google 登入 (Antigravity)"
+        },
+        "card": {
+            "enabled": "已啟用",
+            "disabled": "已停用",
+            "expired": "已過期",
+            "active": "有效",
+            "expiresIn": "過期時間",
+            "lastRefresh": "上次刷新",
+            "refresh": "刷新",
+            "delete": "刪除"
+        },
+        "manual": {
+            "title": "手動新增 Token",
+            "description": "手動輸入 OAuth Token 詳情。您可以在 OAuth 登入期間從瀏覽器的開發者工具中取得這些值。",
+            "provider": "提供商",
+            "email": "電子郵件（可選）",
+            "accessToken": "存取 Token",
+            "refreshToken": "刷新 Token（可選）",
+            "expiresIn": "過期時間（秒，可選）",
+            "remark": "備註（可選）",
+            "add": "新增 Token"
+        },
+        "login": {
+            "title": "OAuth 登入",
+            "start": "開始登入",
+            "started": "認證視窗已開啟",
+            "startedDescription": "在開啟的視窗中完成登入。認證成功後，Token 將出現在列表中。"
+        },
+        "delete": {
+            "title": "刪除 OAuth Token",
+            "description": "確定要刪除此 OAuth Token 嗎？此操作無法復原。"
         }
     }
 }

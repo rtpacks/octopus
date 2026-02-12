@@ -15,6 +15,7 @@
 
 - 🔀 **多渠道聚合** - 支持接入多个 LLM 供应商渠道，统一管理
 - 🔑 **多Key支持** - 单渠道支持配置多 Key
+- 🔐 **OAuth 认证** - 支持 ChatGPT (Codex) 和 Google (Antigravity/Gemini) 订阅的 OAuth 登录
 - ⚡ **智能优选** - 单渠道多端点，智能选择延迟最小的端点请求
 - ⚖️ **负载均衡** - 自动分配请求，确保服务稳定高效
 - 🔄 **协议互转** - 支持 OpenAI Chat / OpenAI Responses / Anthropic 三种 API 格式互相转换
@@ -286,6 +287,39 @@ http://localhost:3000
 | 🥈 低 | models.dev | 自动同步的默认价格 |
 
 > 💡 **提示**：如需覆盖某个模型的默认价格，只需在价格管理页面为其设置自定义价格即可。
+
+---
+
+### 🔐 OAuth 认证
+
+Octopus 支持双认证模式，可以共存：
+
+| 模式 | 说明 | 适用场景 |
+|------|------|----------|
+| **API Key** | 传统的 API Key 认证 | 企业 API Key |
+| **OAuth** | OAuth 登录，自动刷新 Token | 个人订阅账号（ChatGPT、Gemini） |
+
+**支持的 OAuth 提供商：**
+
+| 提供商 | 认证类型 | 说明 |
+|--------|----------|------|
+| Codex / ChatGPT | `oauth_codex` | 使用 ChatGPT 账号登录 |
+| Antigravity / Gemini | `oauth_antigravity` | 使用 Google 账号登录 |
+
+**主要特性：**
+- 🔄 Token 即将过期时自动刷新
+- 🔒 安全的 Token 存储，敏感信息隐藏
+- 📊 Token 状态监控（有效 / 过期 / 禁用）
+- 🔀 与现有 API Key 渠道无缝集成
+
+**使用方法：**
+1. 进入 **OAuth** 页面
+2. 点击 **+** 添加新 Token
+3. 选择 OAuth 登录或手动添加 Token
+4. 创建 Channel 时选择 OAuth 认证类型
+5. 选择对应的 OAuth Token
+
+> 📖 **详细指南**：查看 [OAuth 集成指南](docs/oauth.md) 获取完整文档。
 
 ---
 

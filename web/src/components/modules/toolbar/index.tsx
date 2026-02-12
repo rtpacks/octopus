@@ -14,15 +14,18 @@ import { useNavStore, type NavItem } from '@/components/modules/navbar';
 import { CreateDialogContent as ChannelCreateContent } from '@/components/modules/channel/Create';
 import { CreateDialogContent as GroupCreateContent } from '@/components/modules/group/Create';
 import { CreateDialogContent as ModelCreateContent } from '@/components/modules/model/Create';
+import { CreateDialogContent as OAuthCreateContent } from '@/components/modules/oauth/Create';
 import { useSearchStore } from './search-store';
 import { usePaginationStore } from './pagination-store';
 
-const TOOLBAR_PAGES: NavItem[] = ['channel', 'group', 'model'];
+const TOOLBAR_PAGES: NavItem[] = ['channel', 'oauth', 'group', 'model'];
 
 function CreateDialogContent({ activeItem }: { activeItem: NavItem }) {
     switch (activeItem) {
         case 'channel':
             return <ChannelCreateContent />;
+        case 'oauth':
+            return <OAuthCreateContent />;
         case 'group':
             return <GroupCreateContent />;
         case 'model':

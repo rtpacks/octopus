@@ -3,6 +3,7 @@ import { apiClient } from '../client';
 import { logger } from '@/lib/logger';
 import { formatCount, formatMoney, formatTime } from '@/lib/utils';
 import { StatsChannel, type StatsMetricsFormatted } from './stats';
+
 /**
  * 渠道类型枚举
  */
@@ -24,6 +25,11 @@ export enum AutoGroupType {
     Exact = 2,  // 准确匹配
     Regex = 3,  // 正则匹配
 }
+
+/**
+ * 认证类型枚举
+ */
+export type AuthType = 'api_key' | 'oauth_codex' | 'oauth_antigravity';
 
 export type BaseUrl = {
     url: string;
@@ -47,12 +53,26 @@ export type ChannelKey = {
 };
 
 /**
+ * OAuth Token 简化类型（用于 Channel 关联）
+ */
+export type OAuthTokenInfo = {
+    id: number;
+    type: string;
+    email: string;
+    enabled: boolean;
+    is_expired: boolean;
+};
+
+/**
  * 渠道完整数据（与后端 model.Channel 对齐；数组字段在前端保证为 []）
  */
 export type Channel = {
     id: number;
     name: string;
     type: ChannelType;
+    auth_type: AuthType;
+    oauth_token_id?: number | null;
+    oauth_token?: OAuthTokenInfo | null;
     enabled: boolean;
     base_urls: BaseUrl[];
     keys: ChannelKey[];
@@ -81,6 +101,8 @@ type ChannelServer = Omit<Channel, 'base_urls' | 'custom_header' | 'keys'> & {
 export type CreateChannelRequest = {
     name: string;
     type: ChannelType;
+    auth_type?: AuthType;
+    oauth_token_id?: number | null;
     enabled?: boolean;
     base_urls: BaseUrl[];
     keys: Array<Pick<ChannelKey, 'enabled' | 'channel_key' | 'remark'>>;
@@ -102,6 +124,8 @@ export type UpdateChannelRequest = {
     id: number;
     name?: string;
     type?: ChannelType;
+    auth_type?: AuthType;
+    oauth_token_id?: number | null;
     enabled?: boolean;
     base_urls?: BaseUrl[];
     model?: string;

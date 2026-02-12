@@ -177,6 +177,14 @@ func ChannelUpdate(req *model.ChannelUpdateRequest, ctx context.Context) (*model
 		selectFields = append(selectFields, "match_regex")
 		updates.MatchRegex = req.MatchRegex
 	}
+	if req.AuthType != nil {
+		selectFields = append(selectFields, "auth_type")
+		updates.AuthType = *req.AuthType
+	}
+	if req.OAuthTokenID != nil {
+		selectFields = append(selectFields, "oauth_token_id")
+		updates.OAuthTokenID = req.OAuthTokenID
+	}
 
 	// 只有当有字段需要更新时才执行 UPDATE
 	if len(selectFields) > 0 {
@@ -364,6 +372,7 @@ func channelRefreshCache(ctx context.Context) error {
 	if err := db.GetDB().WithContext(ctx).
 		Preload("Keys").
 		Preload("Stats").
+		Preload("OAuthToken").
 		Find(&channels).Error; err != nil {
 		log.Warnf("failed to get channels: %v", err)
 		return err
@@ -395,6 +404,7 @@ func channelRefreshCacheByID(id int, ctx context.Context) error {
 	if err := db.GetDB().WithContext(ctx).
 		Preload("Keys").
 		Preload("Stats").
+		Preload("OAuthToken").
 		First(&channel, id).Error; err != nil {
 		return err
 	}

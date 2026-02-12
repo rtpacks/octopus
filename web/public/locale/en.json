@@ -46,6 +46,7 @@
     "navbar": {
         "home": "Home",
         "channel": "Channel",
+        "oauth": "OAuth",
         "group": "Group",
         "key": "Key",
         "model": "Price",
@@ -500,7 +501,53 @@
             "autoGroupRegex": "Regex",
             "matchRegex": "Match Regex",
             "matchRegexPlaceholder": "Optional: regex pattern to match request model names",
-            "remark": "Remark"
+            "remark": "Remark",
+            "authType": "Authentication Type",
+            "authTypeApiKey": "API Key",
+            "authTypeOAuthCodex": "OAuth (Codex/ChatGPT)",
+            "authTypeOAuthAntigravity": "OAuth (Antigravity/Gemini)",
+            "oauthToken": "OAuth Token",
+            "oauthTokenPlaceholder": "Select an OAuth token"
+        }
+    },
+    "oauth": {
+        "create": {
+            "title": "Add OAuth Token",
+            "oauthLogin": "OAuth Login",
+            "manualAdd": "Add Token Manually",
+            "codex": "Login with ChatGPT (Codex)",
+            "antigravity": "Login with Google (Antigravity)"
+        },
+        "card": {
+            "enabled": "Enabled",
+            "disabled": "Disabled",
+            "expired": "Expired",
+            "active": "Active",
+            "expiresIn": "Expires in",
+            "lastRefresh": "Last refresh",
+            "refresh": "Refresh",
+            "delete": "Delete"
+        },
+        "manual": {
+            "title": "Add Token Manually",
+            "description": "Enter the OAuth token details manually. You can get these values from your browser's developer tools during an OAuth login.",
+            "provider": "Provider",
+            "email": "Email (optional)",
+            "accessToken": "Access Token",
+            "refreshToken": "Refresh Token (optional)",
+            "expiresIn": "Expires In (seconds, optional)",
+            "remark": "Remark (optional)",
+            "add": "Add Token"
+        },
+        "login": {
+            "title": "OAuth Login",
+            "start": "Start Login",
+            "started": "Authentication window opened",
+            "startedDescription": "Complete the login in the opened window. The token will appear in the list after successful authentication."
+        },
+        "delete": {
+            "title": "Delete OAuth Token",
+            "description": "Are you sure you want to delete this OAuth token? This action cannot be undone."
         }
     }
 }

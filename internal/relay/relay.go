@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/bestruirui/octopus/internal/auth"
 	"github.com/bestruirui/octopus/internal/helper"
 	dbmodel "github.com/bestruirui/octopus/internal/model"
 	"github.com/bestruirui/octopus/internal/op"
@@ -95,10 +96,48 @@ func Handler(inboundType inbound.InboundType, c *gin.Context) {
 			continue
 		}
 
-		usedKey := channel.GetChannelKey()
-		if usedKey.ChannelKey == "" {
-			iter.Skip(channel.ID, 0, channel.Name, "no available key")
-			continue
+		// 根据认证类型获取认证凭证
+		var usedKey dbmodel.ChannelKey
+		var oauthToken *dbmodel.OAuthToken
+
+		if channel.IsOAuth() {
+			// OAuth 认证模式
+			if channel.OAuthToken == nil || !channel.OAuthToken.Enabled {
+				iter.Skip(channel.ID, 0, channel.Name, "no available oauth token")
+				continue
+			}
+
+			// 检查 Token 是否需要刷新
+			if channel.OAuthToken.NeedsRefresh() {
+				// 尝试刷新 Token
+				if err := auth.RefreshTokenIfNeeded(channel.OAuthToken, c.Request.Context()); err != nil {
+					log.Warnf("failed to refresh oauth token for channel %s: %v", channel.Name, err)
+					iter.Skip(channel.ID, 0, channel.Name, fmt.Sprintf("oauth token refresh failed: %v", err))
+					continue
+				}
+				// 重新获取刷新后的 Token
+				refreshedToken, err := op.OAuthTokenGet(channel.OAuthToken.ID, c.Request.Context())
+				if err != nil {
+					iter.Skip(channel.ID, 0, channel.Name, "failed to get refreshed token")
+					continue
+				}
+				oauthToken = refreshedToken
+			} else {
+				oauthToken = channel.OAuthToken
+			}
+
+			// 再次检查 Token 是否过期（刷新后仍可能失败）
+			if oauthToken.IsExpired() {
+				iter.Skip(channel.ID, 0, channel.Name, "oauth token expired")
+				continue
+			}
+		} else {
+			// API Key 认证模式
+			usedKey = channel.GetChannelKey()
+			if usedKey.ChannelKey == "" {
+				iter.Skip(channel.ID, 0, channel.Name, "no available key")
+				continue
+			}
 		}
 
 		// 熔断检查
@@ -136,6 +175,7 @@ func Handler(inboundType inbound.InboundType, c *gin.Context) {
 			outAdapter:           outAdapter,
 			channel:              channel,
 			usedKey:              usedKey,
+			oauthToken:           oauthToken,
 			firstTokenTimeOutSec: group.FirstTokenTimeOut,
 		}
 
@@ -158,20 +198,32 @@ func Handler(inboundType inbound.InboundType, c *gin.Context) {
 
 // attempt 统一管理一次通道尝试的完整生命周期
 func (ra *relayAttempt) attempt() attemptResult {
-	span := ra.iter.StartAttempt(ra.channel.ID, ra.usedKey.ID, ra.channel.Name)
+	// 对于 OAuth 模式，使用 0 作为 keyID
+	keyID := ra.usedKey.ID
+	if ra.channel.IsOAuth() {
+		keyID = 0
+	}
+
+	span := ra.iter.StartAttempt(ra.channel.ID, keyID, ra.channel.Name)
 
 	// 转发请求
 	statusCode, fwdErr := ra.forward()
 
-	// 更新 channel key 状态
-	ra.usedKey.StatusCode = statusCode
-	ra.usedKey.LastUseTimeStamp = time.Now().Unix()
+	// 更新 channel key 状态（仅 API Key 模式）
+	if !ra.channel.IsOAuth() {
+		ra.usedKey.StatusCode = statusCode
+		ra.usedKey.LastUseTimeStamp = time.Now().Unix()
+	}
 
 	if fwdErr == nil {
 		// ====== 成功 ======
 		ra.collectResponse()
-		ra.usedKey.TotalCost += ra.metrics.Stats.InputCost + ra.metrics.Stats.OutputCost
-		op.ChannelKeyUpdate(ra.usedKey)
+
+		// 更新统计（仅 API Key 模式）
+		if !ra.channel.IsOAuth() {
+			ra.usedKey.TotalCost += ra.metrics.Stats.InputCost + ra.metrics.Stats.OutputCost
+			op.ChannelKeyUpdate(ra.usedKey)
+		}
 
 		span.End(dbmodel.AttemptSuccess, statusCode, "")
 
@@ -182,15 +234,17 @@ func (ra *relayAttempt) attempt() attemptResult {
 		})
 
 		// 熔断器：记录成功
-		balancer.RecordSuccess(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model)
+		balancer.RecordSuccess(ra.channel.ID, keyID, ra.internalRequest.Model)
 		// 会话保持：更新粘性记录
-		balancer.SetSticky(ra.apiKeyID, ra.requestModel, ra.channel.ID, ra.usedKey.ID)
+		balancer.SetSticky(ra.apiKeyID, ra.requestModel, ra.channel.ID, keyID)
 
 		return attemptResult{Success: true}
 	}
 
 	// ====== 失败 ======
-	op.ChannelKeyUpdate(ra.usedKey)
+	if !ra.channel.IsOAuth() {
+		op.ChannelKeyUpdate(ra.usedKey)
+	}
 	span.End(dbmodel.AttemptFailed, statusCode, fwdErr.Error())
 
 	// Channel 维度统计
@@ -200,7 +254,7 @@ func (ra *relayAttempt) attempt() attemptResult {
 	})
 
 	// 熔断器：记录失败
-	balancer.RecordFailure(ra.channel.ID, ra.usedKey.ID, ra.internalRequest.Model)
+	balancer.RecordFailure(ra.channel.ID, keyID, ra.internalRequest.Model)
 
 	written := ra.c.Writer.Written()
 	if written {
@@ -243,12 +297,22 @@ func parseRequest(inboundType inbound.InboundType, c *gin.Context) (*model.Inter
 func (ra *relayAttempt) forward() (int, error) {
 	ctx := ra.c.Request.Context()
 
+	// 根据认证类型获取 API Key
+	var apiKey string
+	if ra.channel.IsOAuth() && ra.oauthToken != nil {
+		// OAuth 认证模式：使用 Access Token
+		apiKey = ra.oauthToken.AccessToken
+	} else {
+		// API Key 认证模式
+		apiKey = ra.usedKey.ChannelKey
+	}
+
 	// 构建出站请求
 	outboundRequest, err := ra.outAdapter.TransformRequest(
 		ctx,
 		ra.internalRequest,
 		ra.channel.GetBaseUrl(),
-		ra.usedKey.ChannelKey,
+		apiKey,
 	)
 	if err != nil {
 		log.Warnf("failed to create request: %v", err)

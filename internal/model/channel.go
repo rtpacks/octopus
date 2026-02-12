@@ -15,10 +15,22 @@ const (
 	AutoGroupTypeRegex AutoGroupType = 3 //正则匹配
 )
 
+// AuthType defines the authentication type for a channel
+type AuthType string
+
+const (
+	AuthTypeAPIKey       AuthType = "api_key"        // Traditional API key authentication
+	AuthTypeOAuthCodex   AuthType = "oauth_codex"    // Codex OAuth authentication
+	AuthTypeOAuthAntigravity AuthType = "oauth_antigravity" // Antigravity OAuth authentication
+)
+
 type Channel struct {
 	ID            int                   `json:"id" gorm:"primaryKey"`
 	Name          string                `json:"name" gorm:"unique;not null"`
 	Type          outbound.OutboundType `json:"type"`
+	AuthType      AuthType              `json:"auth_type" gorm:"default:'api_key';index"`
+	OAuthTokenID  *uint                 `json:"oauth_token_id,omitempty"`
+	OAuthToken    *OAuthToken           `json:"oauth_token,omitempty" gorm:"foreignKey:OAuthTokenID"`
 	Enabled       bool                  `json:"enabled" gorm:"default:true"`
 	BaseUrls      []BaseUrl             `json:"base_urls" gorm:"serializer:json"`
 	Keys          []ChannelKey          `json:"keys" gorm:"foreignKey:ChannelID"`
@@ -60,6 +72,8 @@ type ChannelUpdateRequest struct {
 	ID            int                    `json:"id" binding:"required"`
 	Name          *string                `json:"name,omitempty"`
 	Type          *outbound.OutboundType `json:"type,omitempty"`
+	AuthType      *AuthType              `json:"auth_type,omitempty"`
+	OAuthTokenID  *uint                  `json:"oauth_token_id,omitempty"`
 	Enabled       *bool                  `json:"enabled,omitempty"`
 	BaseUrls      *[]BaseUrl             `json:"base_urls,omitempty"`
 	Model         *string                `json:"model,omitempty"`
@@ -152,4 +166,41 @@ func (c *Channel) GetChannelKey() ChannelKey {
 		return ChannelKey{}
 	}
 	return best
+}
+
+// AuthCredential holds authentication credentials for a channel
+type AuthCredential struct {
+	AuthType    AuthType
+	APIKey      string      // For api_key auth type
+	OAuthToken  *OAuthToken // For oauth auth types
+}
+
+// GetAuthCredential returns the appropriate authentication credential based on AuthType
+func (c *Channel) GetAuthCredential() AuthCredential {
+	if c == nil {
+		return AuthCredential{AuthType: AuthTypeAPIKey}
+	}
+
+	switch c.AuthType {
+	case AuthTypeOAuthCodex, AuthTypeOAuthAntigravity:
+		return AuthCredential{
+			AuthType:   c.AuthType,
+			OAuthToken: c.OAuthToken,
+		}
+	default:
+		// Default to API key authentication
+		key := c.GetChannelKey()
+		return AuthCredential{
+			AuthType: AuthTypeAPIKey,
+			APIKey:   key.ChannelKey,
+		}
+	}
+}
+
+// IsOAuth returns true if the channel uses OAuth authentication
+func (c *Channel) IsOAuth() bool {
+	if c == nil {
+		return false
+	}
+	return c.AuthType == AuthTypeOAuthCodex || c.AuthType == AuthTypeOAuthAntigravity
 }

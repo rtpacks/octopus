@@ -1,4 +1,5 @@
-import { AutoGroupType, ChannelType, type Channel, useFetchModel } from '@/api/endpoints/channel';
+import { AutoGroupType, ChannelType, type Channel, type AuthType, useFetchModel } from '@/api/endpoints/channel';
+import { useOAuthTokenList, type OAuthTokenResponse } from '@/api/endpoints/oauth';
 import {
     Select,
     SelectContent,
@@ -13,7 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from '@/components/common/Toast';
 import { useTranslations } from 'next-intl';
 import { useEffect, useRef, useState } from 'react';
-import { RefreshCw, X, Plus } from 'lucide-react';
+import { RefreshCw, X, Plus, KeyRound } from 'lucide-react';
 
 export interface ChannelKeyFormItem {
     id?: number;
@@ -28,6 +29,8 @@ export interface ChannelKeyFormItem {
 export interface ChannelFormData {
     name: string;
     type: ChannelType;
+    auth_type: AuthType;
+    oauth_token_id: number | null;
     base_urls: Channel['base_urls'];
     custom_header: Channel['custom_header'];
     channel_proxy: string;
@@ -73,6 +76,10 @@ export function ChannelForm({
     idPrefix = 'channel',
 }: ChannelFormProps) {
     const t = useTranslations('channel.form');
+    const { data: oauthTokens } = useOAuthTokenList();
+
+    // Check if using OAuth authentication
+    const isOAuth = formData.auth_type === 'oauth_codex' || formData.auth_type === 'oauth_antigravity';
 
     // Ensure the form always shows at least 1 row for base_urls / keys / custom_header.
     // This avoids "empty list" UI and also keeps URL + APIKEY layout consistent.
@@ -81,14 +88,15 @@ export function ChannelForm({
             onFormDataChange({ ...formData, base_urls: [{ url: '', delay: 0 }] });
             return;
         }
-        if (!formData.keys || formData.keys.length === 0) {
+        // Only initialize keys if not using OAuth
+        if (!isOAuth && (!formData.keys || formData.keys.length === 0)) {
             onFormDataChange({ ...formData, keys: [{ enabled: true, channel_key: '' }] });
             return;
         }
         if (!formData.custom_header || formData.custom_header.length === 0) {
             onFormDataChange({ ...formData, custom_header: [{ header_key: '', header_value: '' }] });
         }
-    }, [formData, onFormDataChange]);
+    }, [formData, onFormDataChange, isOAuth]);
 
     const autoModels = formData.model
         ? formData.model.split(',').map((m) => m.trim()).filter(Boolean)
@@ -260,6 +268,68 @@ export function ChannelForm({
                 </div>
             </div>
 
+            {/* Authentication Type Selection */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                    <label htmlFor={`${idPrefix}-auth-type`} className="text-sm font-medium text-card-foreground">
+                        {t('authType')}
+                    </label>
+                    <Select
+                        value={formData.auth_type}
+                        onValueChange={(value) => onFormDataChange({
+                            ...formData,
+                            auth_type: value as AuthType,
+                            oauth_token_id: value === 'api_key' ? null : formData.oauth_token_id,
+                        })}
+                    >
+                        <SelectTrigger id={`${idPrefix}-auth-type`} className="rounded-xl w-full border border-border px-4 py-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                            <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className='rounded-xl'>
+                            <SelectItem className='rounded-xl' value="api_key">{t('authTypeApiKey')}</SelectItem>
+                            <SelectItem className='rounded-xl' value="oauth_codex">{t('authTypeOAuthCodex')}</SelectItem>
+                            <SelectItem className='rounded-xl' value="oauth_antigravity">{t('authTypeOAuthAntigravity')}</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+
+                {/* OAuth Token Selection (only shown for OAuth auth types) */}
+                {isOAuth && (
+                    <div className="space-y-2">
+                        <label htmlFor={`${idPrefix}-oauth-token`} className="text-sm font-medium text-card-foreground">
+                            {t('oauthToken')}
+                        </label>
+                        <Select
+                            value={formData.oauth_token_id ? String(formData.oauth_token_id) : ''}
+                            onValueChange={(value) => onFormDataChange({
+                                ...formData,
+                                oauth_token_id: value ? Number(value) : null,
+                            })}
+                        >
+                            <SelectTrigger id={`${idPrefix}-oauth-token`} className="rounded-xl w-full border border-border px-4 py-2 text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                                <SelectValue placeholder={t('oauthTokenPlaceholder')} />
+                            </SelectTrigger>
+                            <SelectContent className='rounded-xl'>
+                                {oauthTokens
+                                    ?.filter((token) =>
+                                        token.enabled &&
+                                        !token.is_expired &&
+                                        (formData.auth_type === 'oauth_codex' ? token.type === 'codex' : token.type === 'antigravity')
+                                    )
+                                    .map((token) => (
+                                        <SelectItem key={token.id} className='rounded-xl' value={String(token.id)}>
+                                            <div className="flex items-center gap-2">
+                                                <KeyRound className="h-3 w-3" />
+                                                {token.email || `Token #${token.id}`}
+                                            </div>
+                                        </SelectItem>
+                                    ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                )}
+            </div>
+
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-card-foreground">
@@ -304,59 +374,62 @@ export function ChannelForm({
                 </div>
             </div>
 
-            <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-card-foreground">
-                        {t('apiKey')} {formData.keys.length > 0 ? `(${formData.keys.length})` : ''}
-                    </label>
-                    <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleAddKey}
-                        className="h-6 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground hover:bg-transparent"
-                    >
-                        <Plus className="h-3 w-3 mr-1" />
-                        {t('add')}
-                    </Button>
-                </div>
+            {/* API Key Section - Only shown for API Key auth type */}
+            {!isOAuth && (
                 <div className="space-y-2">
-                    {(formData.keys ?? []).map((k, idx) => (
-                        <div key={k.id ?? `new-${idx}`} className="flex items-center gap-2">
-                            <Input
-                                type="text"
-                                value={k.channel_key}
-                                onChange={(e) => handleUpdateKey(idx, { channel_key: e.target.value })}
-                                placeholder={t('apiKey')}
-                                required={idx === 0}
-                                className="rounded-xl flex-1"
-                            />
-                            <Input
-                                type="text"
-                                value={k.remark ?? ''}
-                                onChange={(e) => handleUpdateKey(idx, { remark: e.target.value })}
-                                placeholder={t('remark')}
-                                className="rounded-xl w-32"
-                            />
-                            <Switch
-                                checked={k.enabled}
-                                onCheckedChange={(checked) => handleUpdateKey(idx, { enabled: checked })}
-                            />
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveKey(idx)}
-                                disabled={(formData.keys ?? []).length <= 1}
-                                className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-transparent disabled:opacity-40"
-                                title="Remove"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-                    ))}
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-card-foreground">
+                            {t('apiKey')} {formData.keys.length > 0 ? `(${formData.keys.length})` : ''}
+                        </label>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleAddKey}
+                            className="h-6 px-2 text-xs text-muted-foreground/70 hover:text-muted-foreground hover:bg-transparent"
+                        >
+                            <Plus className="h-3 w-3 mr-1" />
+                            {t('add')}
+                        </Button>
+                    </div>
+                    <div className="space-y-2">
+                        {(formData.keys ?? []).map((k, idx) => (
+                            <div key={k.id ?? `new-${idx}`} className="flex items-center gap-2">
+                                <Input
+                                    type="text"
+                                    value={k.channel_key}
+                                    onChange={(e) => handleUpdateKey(idx, { channel_key: e.target.value })}
+                                    placeholder={t('apiKey')}
+                                    required={idx === 0}
+                                    className="rounded-xl flex-1"
+                                />
+                                <Input
+                                    type="text"
+                                    value={k.remark ?? ''}
+                                    onChange={(e) => handleUpdateKey(idx, { remark: e.target.value })}
+                                    placeholder={t('remark')}
+                                    className="rounded-xl w-32"
+                                />
+                                <Switch
+                                    checked={k.enabled}
+                                    onCheckedChange={(checked) => handleUpdateKey(idx, { enabled: checked })}
+                                />
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveKey(idx)}
+                                    disabled={(formData.keys ?? []).length <= 1}
+                                    className="h-8 w-8 p-0 rounded-xl text-muted-foreground hover:text-destructive hover:bg-transparent disabled:opacity-40"
+                                    title="Remove"
+                                >
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="space-y-2">
                 <div className="flex items-center justify-between">
